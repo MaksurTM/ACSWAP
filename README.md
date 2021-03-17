@@ -1,7 +1,7 @@
 Script that cycles between audiocards on a running pulseaudio sound server.
 # ACSWAP
 Small shell script that serves to quickly swap between audiocards on a running pulseaudio sound server.
-It uses `pactl` and switches to the next audiocard in number and then starts from the first audiocard again.
+It uses `pactl` and switches to the next audiocard in number after reatching the last audiocard it then starts from the first audiocard again.
 If you add any new audiocards to your system make sure to run `acswap --update`.
 
 ## Installation
