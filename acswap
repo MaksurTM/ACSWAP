@@ -1,0 +1,54 @@
+#!/bin/sh -e
+# Creates variables directory if none is found.
+VARDIR=$HOME/.local/vars
+update() {
+  [ -d $VARDIR ] && (echo -e "Variables directory found at   \033[32m$VARDIR\033[0m, storing variables there.") || ( echo "No vars directory, creating one."; mkdir $VARDIR)
+  # Audiocards don't always start at 0 so if  there
+  # is no Audiocard 0 the loop will start at 1.
+  ac0=$(pactl list short sources | grep \^0 | awk '{ print $2 }')
+  [ -n "$ac0" ] && n=0 || n=1
+
+  # While loop that creates the Audiocard variables
+  # Starts at Audiocard 1 and breaks if output is empty
+  while true; do
+        echo "----------"
+        echo "Card Number: $n"
+        pactl list short sources | grep \^$n | awk '{ print $2 }' > $VARDIR/ACsrc$n &&  echo "Source: $(cat $VARDIR/ACsrc$n )"
+        pactl list short sinks | grep \^$n | awk '{ print $2 }' > $VARDIR/ACsnk$n && echo "Sink: $(cat  $VARDIR/ACsnk$n )"
+        [ -n "$(cat $VARDIR/ACsnk$n)" ] || break
+        n=`expr $n + 1`
+done
+echo -e "----------\n\033[32mAll done.\033["
+}
+
+[ -n "$(ls $VARDIR | grep "ACsrc")" ] || echo "No audiocard variables set. Updating."; update
+[ "$1" = "-U" ] && update
+[ "$1" = "--update" ]  && update
+
+
+
+
+
+# If the is no current ac value stored it will create
+# the var, if the file is empty it will set it to 1
+[ -f $VARDIR/saput ] || echo "1" > $VARDIR/saput
+[ "$(cat $VARDIR/saput)" ] || echo "1" > $VARDIR/saput
+
+# Detects number of total Audiocards
+ACNumb="$(ls $VARDIR | grep "ACsrc" | wc -l)"
+
+# Gets current audio card number otherwise is one
+n="$(cat $VARDIR/saput)" || n=1
+
+# Switches source and sink values to of next audio card
+src="$(cat $VARDIR/ACsrc$n)"
+snk="$(cat $VARDIR/ACsnk$n)"
+pactl set-default-source $src
+pactl set-default-sink $snk
+n=`expr $n + 1`
+
+# If audio card is greater than the total number of
+# audiocards it will return to the first one
+[ $n -gt $ACNumb ] && n=1
+echo "$n" > $VARDIR/saput
+echo -e "----------\n\033[32mAll done.\033["
