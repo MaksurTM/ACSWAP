@@ -9,4 +9,3 @@ If you add any new audiocards to your system make sure to run `acswap --update`.
 2. Give execute perm with `chmod -x /bin/acswap`
 
 Now you use `acswap` to switch to the next audiocard.
-This script intended to be set as global keybind.
