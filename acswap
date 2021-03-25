@@ -1,0 +1,73 @@
+#!/bin/bash -e
+# Creates variables directory if none is found.
+VARDIR=$HOME/.local/vars
+
+# get audiocard source
+sources () {
+	pactl list short sources | grep \^$n | awk '{ print $2 }' > $VARDIR/ACsrc$n && echo "Source: $(cat $VARDIR/ACsrc$n )" 
+}
+
+# get audiocard sink
+sinks () {
+	pactl list short sinks | grep \^$n | awk '{ print $2 }' > $VARDIR/ACsnk$n && echo "Sink: $(cat  $VARDIR/ACsnk$n )"
+}
+
+# If no Audiocards 0 is found start at 1.
+checkac () { 
+	ac0=$(pactl list short sources | grep \^0 | awk '{ print $2 }')
+	[ -n "$ac0" ] && n=0 || n=1 
+}
+# function that exports audiocard variables (sources and sinks)
+update() {
+	# Create variables directory if there is none.
+  	[ -d $VARDIR ] && (echo -e "Variables directory found at   \033[32m$VARDIR\033[0m, storing variables there.") || ( echo "No vars directory, creating one."; mkdir $VARDIR)
+	checkac
+	# While loop that creates the Audiocard variables
+	# Breaks if output is empty.
+	while true; do
+        	echo "----------"
+        	echo "Card Number: $n"
+        	sources
+        	sinks
+		[ -n "$(cat $VARDIR/ACsnk$n)" ] || break
+        	n=`expr $n + 1`
+	done
+	echo -e "----------\n\033[32mAll done.\033["
+}
+# End of update fuction
+
+# Runs update if there are no variables set  or if flag is used
+[ -n "$(ls $VARDIR | grep "ACsrc")" ] || update
+[ "$1" = "-U" ] && update
+[ "$1" = "--update" ]  && update
+
+# saput is the current card in the rotation
+
+# If audiocards start at 0 so does the saput rotation else starts at 1
+check=$(cat $VARDIR/ACsrc0)
+[ -n "$check" ] && start=0 || start=1 
+
+# If current audiocard in rotation is greater than or equal 
+# to the total number of audiocards it will reset the rotation
+[ $saput -gt $ACNumb ] && echo "$start" > $VARDIR/saput
+
+# If there is no current saput variable file or if it is empty
+# it will echo starting point of the rotation to the variable file
+[ -f $VARDIR/saput ] || echo "$start" > $VARDIR/saput
+[ "$(cat $VARDIR/saput)" ] || echo "$start" > $VARDIR/saput
+
+# Gets number of total audiocards defined by update
+ACNumb="$(ls $VARDIR | grep "ACsrc" | wc -l)"
+
+# Gets current audiocard number in rotation
+saput=$(cat $VARDIR/saput)
+
+# Switches source and sink values to of next audio card
+src="$(cat $VARDIR/ACsrc$saput)"
+snk="$(cat $VARDIR/ACsnk$saput)"
+[ -n $src ] || pactl set-default-source $src
+[ -n $snk ] || pactl set-default-sink $snk
+saput=`expr $saput + 1`
+
+echo "$saput" > $VARDIR/saput
+echo -e "\033[32mAudiocard swapped.\033[\n"
